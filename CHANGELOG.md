@@ -1,5 +1,19 @@
 # Journal des modifications
 
+## 2.6.1
+- **Correction (version bureau)** : écran blanc définitif au clic sur
+  « Connecter l'imprimante ». Le flag `WebBluetoothNewPermissionsBackend`
+  exige des gestionnaires de permission qui n'étaient pas fournis, et le
+  processus de rendu mourait à l'ouverture du sélecteur. Vérifié :
+  `navigator.bluetooth` reste disponible sans ce flag.
+- Gestionnaires de permission Bluetooth ajoutés, restreints au nécessaire
+- Rechargement automatique après un plantage du rendu (3 tentatives), puis
+  message explicite — au lieu d'une fenêtre blanche muette
+- Navigation hors application bloquée : un fichier glissé dans la fenêtre
+  remplaçait la page
+- **Correction** : une erreur de « geste utilisateur » s'affichait comme un
+  problème de HTTPS
+
 ## 2.6.0
 - Liste des produits regroupée par catégorie, sections repliables et mémorisées
 - Recherche dans la liste des produits, insensible aux accents

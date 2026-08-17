@@ -666,8 +666,17 @@ function traduireErreur(e) {
   if (nom === 'NotSupportedError' || /web bluetooth unavailable|not supported/i.test(msg)) {
     return "Ce navigateur ne gère pas le Bluetooth. Utilise Chrome ou Edge (Android ou ordinateur).";
   }
+  // Le navigateur exige une action directe de l'utilisateur pour ouvrir le
+  // Bluetooth. Ce cas porte le même nom d'erreur que le défaut de HTTPS,
+  // d'où le test sur le message avant celui du nom.
+  if (/user gesture|user activation/i.test(msg)) {
+    return "Appuie de nouveau sur le bouton : le navigateur demande une action directe pour accéder au Bluetooth.";
+  }
   if (nom === 'SecurityError' || /secure context/i.test(msg)) {
     return "Le Bluetooth exige une connexion sécurisée (HTTPS). Ouvre l'app depuis son adresse en ligne.";
+  }
+  if (/adapter (is )?(not available|off)|bluetooth.*(disabled|turned off)/i.test(msg)) {
+    return "Le Bluetooth du poste est désactivé. Active-le, puis réessaie.";
   }
   if (nom === 'NetworkError' || /gatt (operation|server)|connection failed/i.test(msg)) {
     return "La liaison Bluetooth a échoué. Éteins puis rallume l'imprimante, et reconnecte-toi.";

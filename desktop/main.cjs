@@ -5,8 +5,12 @@ const http = require('http');
 
 // Electron n'expose pas navigator.bluetooth par défaut : sans ce flag, l'API
 // est tout simplement absente et l'app ne peut pas voir l'imprimante.
-// (Vérifié : sans lui, typeof navigator.bluetooth === 'undefined'.)
-app.commandLine.appendSwitch('enable-features', 'WebBluetooth,WebBluetoothNewPermissionsBackend');
+//
+// WebBluetoothNewPermissionsBackend a été retiré : il exige des gestionnaires
+// de permission dédiés, sans lesquels le processus de rendu meurt à l'ouverture
+// du sélecteur — la fenêtre devient blanche définitivement. Vérifié : l'API
+// reste disponible sans lui.
+app.commandLine.appendSwitch('enable-features', 'WebBluetooth');
 
 // ---------------------------------------------------------------------------
 // Pourquoi un serveur local plutôt que loadFile() ?
@@ -82,6 +86,8 @@ function memoriserImprimante(deviceId, deviceName) {
 }
 
 function createWindow(port) {
+  let relances = 0;
+
   const win = new BrowserWindow({
     width: 980,
     height: 820,
@@ -118,6 +124,48 @@ function createWindow(port) {
       deviceName: d.deviceName || '(sans nom)',
     })));
   });
+
+  // --- Autorisations Bluetooth ---
+  // Par défaut Electron refuse certaines demandes ; on autorise explicitement
+  // le Bluetooth, la page étant locale et servie par l'application elle-même.
+  const ses = win.webContents.session;
+
+  // N'autorise que ce dont l'application a besoin, plutôt que tout accepter.
+  const PERMISSIONS_AUTORISEES = ['bluetooth'];
+  ses.setPermissionCheckHandler((_wc, permission) =>
+    PERMISSIONS_AUTORISEES.includes(permission));
+  ses.setPermissionRequestHandler((_wc, permission, callback) =>
+    callback(PERMISSIONS_AUTORISEES.includes(permission)));
+  ses.setDevicePermissionHandler((details) => details.deviceType === 'bluetooth');
+  if (ses.setBluetoothPairingHandler) {
+    ses.setBluetoothPairingHandler((details, callback) => {
+      // Les imprimantes Niimbot ne demandent pas de code d'appairage.
+      callback({ confirmed: true });
+    });
+  }
+
+  // --- Récupération après plantage ---
+  // Sans cela, un processus de rendu qui meurt laisse une fenêtre blanche
+  // définitivement, sans aucune indication pour l'utilisateur.
+  win.webContents.on('render-process-gone', (_evt, details) => {
+    if (relances < 3) {
+      relances++;
+      win.reload();
+    } else {
+      const { dialog } = require('electron');
+      dialog.showErrorBox('Application interrompue',
+        "L'affichage s'est interrompu à plusieurs reprises (" + details.reason + ").\n\n"
+        + "Ferme puis rouvre l'application. Si le problème persiste, "
+        + "vérifie que le Bluetooth du poste est activé.");
+    }
+  });
+
+  // Empêche toute navigation hors de l'application : un fichier glissé dans
+  // la fenêtre remplacerait la page et donnerait un écran blanc.
+  win.webContents.on('will-navigate', (evt, url) => {
+    if (!url.startsWith('http://127.0.0.1:' + port)) evt.preventDefault();
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
   win.loadURL('http://127.0.0.1:' + port + '/index.html');
   return win;
