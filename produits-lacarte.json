@@ -1,0 +1,151 @@
+{
+  "version": 2,
+  "categories": [
+    {
+      "id": "c1",
+      "nom": "Poisson",
+      "emoji": "🐟",
+      "couleur": "#3d6b8f"
+    },
+    {
+      "id": "c2",
+      "nom": "Viande",
+      "emoji": "🥩",
+      "couleur": "#a34a3c"
+    },
+    {
+      "id": "c3",
+      "nom": "Cuisiné",
+      "emoji": "🍲",
+      "couleur": "#b08d3f"
+    },
+    {
+      "id": "c4",
+      "nom": "Légumes",
+      "emoji": "🥕",
+      "couleur": "#4f7a45"
+    },
+    {
+      "id": "c5",
+      "nom": "Pâtisserie",
+      "emoji": "🍰",
+      "couleur": "#8a5a7a"
+    }
+  ],
+  "produits": [
+    {
+      "id": "p001",
+      "nom": "Bar entier",
+      "dureeJours": 4,
+      "catId": "c1"
+    },
+    {
+      "id": "p002",
+      "nom": "Confit de légumes",
+      "dureeJours": 7,
+      "catId": "c3"
+    },
+    {
+      "id": "p003",
+      "nom": "Curry végé",
+      "dureeJours": 7,
+      "catId": "c3"
+    },
+    {
+      "id": "p004",
+      "nom": "Dorade entière",
+      "dureeJours": 4,
+      "catId": "c1"
+    },
+    {
+      "id": "p005",
+      "nom": "Filet de bar",
+      "dureeJours": 5,
+      "catId": "c1"
+    },
+    {
+      "id": "p006",
+      "nom": "Filet de dorade",
+      "dureeJours": 4,
+      "catId": "c1"
+    },
+    {
+      "id": "p007",
+      "nom": "Glaçage miroir",
+      "dureeJours": 30,
+      "catId": "c5"
+    },
+    {
+      "id": "p008",
+      "nom": "Pavé d'espadon",
+      "dureeJours": 4,
+      "catId": "c1"
+    },
+    {
+      "id": "p009",
+      "nom": "Pavé de thon",
+      "dureeJours": 4,
+      "catId": "c1"
+    },
+    {
+      "id": "p010",
+      "nom": "Pickles de fenouil",
+      "dureeJours": 10,
+      "catId": "c4"
+    },
+    {
+      "id": "p011",
+      "nom": "Poulpe",
+      "dureeJours": 5,
+      "catId": "c1"
+    },
+    {
+      "id": "p012",
+      "nom": "Purée carotte",
+      "dureeJours": 7,
+      "catId": "c4"
+    },
+    {
+      "id": "p013",
+      "nom": "Purée maïs",
+      "dureeJours": 7,
+      "catId": "c4"
+    },
+    {
+      "id": "p014",
+      "nom": "Purée patate douce",
+      "dureeJours": 7,
+      "catId": "c4"
+    },
+    {
+      "id": "p015",
+      "nom": "Purée pdt",
+      "dureeJours": 7,
+      "catId": "c4"
+    },
+    {
+      "id": "p016",
+      "nom": "Rillettes de thon",
+      "dureeJours": 7,
+      "catId": "c3"
+    },
+    {
+      "id": "p017",
+      "nom": "Saucisses au poivre",
+      "dureeJours": 5,
+      "catId": "c2"
+    },
+    {
+      "id": "p018",
+      "nom": "Soupe de poisson",
+      "dureeJours": 7,
+      "catId": "c3"
+    },
+    {
+      "id": "p019",
+      "nom": "Œufs durs",
+      "dureeJours": 5,
+      "catId": "c3"
+    }
+  ]
+}
