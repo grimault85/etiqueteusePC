@@ -1,0 +1,56 @@
+# Journal des modifications
+
+## 2.6.0
+- Liste des produits regroupée par catégorie, sections repliables et mémorisées
+- Recherche dans la liste des produits, insensible aux accents
+- Compteurs par catégorie et compteur global
+- Pendant une recherche, toutes les sections s'ouvrent : sinon un résultat
+  situé dans une section repliée resterait invisible
+
+## 2.5.0
+- **Correction** : une DLC antérieure à la date de production, ou déjà
+  dépassée, s'imprimait sans aucun avertissement. Alerte visible et
+  confirmation obligatoire avant impression.
+
+## 2.4.2
+- **Correction** : le champ de saisie manuelle restait affiché en permanence.
+  La règle `label { display: block }` écrasait l'attribut `hidden` du
+  navigateur.
+- Messages d'erreur traduits en français, avec une consigne concrète
+  plutôt qu'un constat technique
+
+## 2.4.1
+- **Correction** : impossible de sélectionner un emoji ou une couleur. Les
+  grilles étaient enfermées dans un `<label>`, qui redirige tout clic vers
+  le champ associé.
+- Suppression du défilement sur grand écran : dates côte à côte et
+  espacements resserrés
+
+## 2.4.0
+- Mode hors ligne (service worker)
+- Rappel de sauvegarde au-delà de 60 impressions ou 21 jours
+- **Correction** : après l'import d'un catalogue, la liste restait sur
+  « saisie manuelle » — DLC vide et bouton grisé, l'application semblait
+  cassée juste après un import réussi.
+
+## 2.3.1
+- **Correction** : les suppressions échouaient en silence dans les iframes
+  sandboxées. `window.confirm()` y est bloqué et ne renvoie rien ;
+  remplacé par une boîte de dialogue interne.
+
+## 2.3.0
+- Aperçu repliable, replié par défaut sur mobile
+- Gestion des catégories déplacée dans Réglages
+
+## 2.2.0
+- Mise en page deux colonnes au-delà de 900 px
+- Historique des impressions avec réimpression
+- Reconnexion sans fenêtre de choix (version bureau)
+- Recherche de produit et mémoire des prénoms
+
+## 2.1.0
+- Catégories avec emoji et couleur, modifiables
+
+## 2.0.0
+- Passage au pilote niimbot-web-bluetooth, validé sur B1 Pro.
+  L'implémentation maison du protocole ne fonctionnait pas.
