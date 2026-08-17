@@ -1,0 +1,45 @@
+{
+  "name": "etiqueteuse-lacarte",
+  "version": "2.6.0",
+  "description": "Étiqueteuse de production (DLC) — La Carte — Niimbot B1 Pro",
+  "main": "main.cjs",
+  "author": "La Carte — Conseil Restaurant",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.lacarte.etiqueteuse",
+    "productName": "Etiqueteuse La Carte",
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "app/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "app/icons/icon-512.png",
+      "artifactName": "Etiqueteuse-La-Carte-${version}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "app/icons/icon-512.png",
+      "category": "public.app-category.productivity"
+    },
+    "directories": {
+      "output": "release"
+    }
+  }
+}
