@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#1c1c1c" />
+<meta name="mobile-web-app-capable" content="yes" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<title>Étiqueteuse — La Carte</title>
+<style>
+  :root {
+    --gold: #b08d3f;
+    --ink: #1c1c1c;
+    --paper: #faf8f4;
+    --line: #e2ddd2;
+    --danger: #b3402d;
+    --success: #3d6b45;
+    --tap: 52px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  /* Nos règles d'affichage (label, .btn…) écrasent le [hidden] du navigateur.
+     Sans ce rappel, les éléments masqués restent visibles. */
+  [hidden] { display: none !important; }
+  html, body {
+    margin: 0; height: 100%; background: var(--paper); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    overscroll-behavior: none;
+  }
+  body { display: flex; flex-direction: column; }
+
+  header {
+    background: #fff; border-bottom: 1px solid var(--line);
+    padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .brand { font-weight: 700; letter-spacing: .5px; font-size: 16px; }
+  .brand .g { color: var(--gold); }
+  .bt-state {
+    font-size: 11px; padding: 5px 10px; border-radius: 20px;
+    background: #f0ede6; color: #888; white-space: nowrap;
+  }
+  .bt-state.ok { background: #e9f3ea; color: var(--success); }
+
+  main { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: 24px; -webkit-overflow-scrolling: touch; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  nav {
+    display: flex; background: #fff; border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav button {
+    flex: 1; border: none; background: none; padding: 12px 4px 14px;
+    font-size: 11px; color: #999; display: flex; flex-direction: column;
+    align-items: center; gap: 5px; cursor: pointer; font-family: inherit;
+  }
+  nav button .ico { font-size: 20px; line-height: 1; }
+  nav button.active { color: var(--ink); font-weight: 600; }
+
+  label { display: block; font-size: 12px; color: #777; margin-bottom: 14px; font-weight: 500; }
+  label > span { display: block; margin-bottom: 6px; }
+  input, select {
+    width: 100%; padding: 14px 12px; border: 1px solid var(--line); border-radius: 10px;
+    font-size: 16px; background: #fff; color: var(--ink); font-family: inherit;
+    min-height: var(--tap);
+  }
+  input:focus, select:focus { outline: 2px solid var(--gold); border-color: transparent; }
+  .hint { font-size: 11px; color: #999; margin-top: 5px; }
+
+  button.btn {
+    width: 100%; min-height: var(--tap); border-radius: 10px; font-size: 16px;
+    font-family: inherit; cursor: pointer; border: none; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn.primary { background: var(--ink); color: #fff; }
+  .btn.primary:disabled { background: #ccc; }
+  .btn.ghost { background: #fff; border: 1px solid var(--line); color: var(--ink); font-weight: 500; }
+  .btn + .btn { margin-top: 10px; }
+
+  .qty-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .qty-row .lbl { font-size: 12px; color: #777; font-weight: 500; flex: 1; }
+  .stepper { display: flex; align-items: center; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+  .stepper button {
+    width: 48px; height: 48px; border: none; background: none; font-size: 22px;
+    cursor: pointer; color: var(--ink); font-family: inherit;
+  }
+  .stepper .val { width: 44px; text-align: center; font-size: 17px; font-weight: 600; }
+
+  canvas.label {
+    width: 100%;
+    /* Au-delà, l'aperçu s'étale et perd le rapport avec l'étiquette réelle. */
+    max-width: 420px;
+    margin: 0 auto 16px;
+    background: #fff; border: 1px solid var(--line);
+    border-radius: 8px; display: block;
+    image-rendering: pixelated;
+  }
+
+  .banner { padding: 12px 14px; border-radius: 10px; font-size: 13px; margin-top: 14px; line-height: 1.45; }
+  .banner.success { background: #e9f3ea; color: var(--success); }
+  .banner.error { background: #f7e9e6; color: var(--danger); }
+  .banner.warn { background: #fdf1d8; color: #8a6b1a; }
+
+  .tag { font-size: 10px; background: #fdf1d8; color: #8a6b1a; padding: 2px 7px; border-radius: 10px; margin-left: 6px; }
+  .link { background: none; border: none; color: var(--gold); font-size: 13px; padding: 8px 0; cursor: pointer; font-family: inherit; }
+
+  .prod-item {
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px;
+  }
+  .prod-item .name { flex: 1; font-size: 15px; font-weight: 500; }
+  .prod-item .days { font-size: 12px; color: #888; white-space: nowrap; }
+  .prod-item .del { background: none; border: none; color: var(--danger); font-size: 20px; padding: 6px 4px; cursor: pointer; }
+
+  .empty { text-align: center; color: #999; font-size: 14px; padding: 40px 20px; line-height: 1.6; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin: 0 0 14px; font-weight: 600; }
+  h2:not(:first-child) { margin-top: 28px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .champ { margin-bottom: 14px; }
+  .champ-titre { display: block; font-size: 12px; color: #777; font-weight: 500; margin-bottom: 6px; }
+  .dates-row > label { margin-bottom: 14px; }
+
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 6px; -webkit-overflow-scrolling: touch; }
+  .chip {
+    flex: 0 0 auto; padding: 9px 14px; border-radius: 20px; font-size: 13px;
+    border: 1.5px solid var(--line); background: #fff; cursor: pointer;
+    font-family: inherit; white-space: nowrap; color: #555;
+  }
+  .chip.active { color: #fff; border-color: transparent; font-weight: 600; }
+
+  .prod-item { border-left-width: 4px; border-left-style: solid; }
+  .cat-tag { font-size: 11px; color: #999; }
+
+  .cat-item {
+    background: #fff; border: 1px solid var(--line); border-left-width: 4px;
+    border-left-style: solid; border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 10px;
+  }
+  .cat-item .nom { flex: 1; font-size: 15px; }
+  .cat-item .nb { font-size: 12px; color: #999; }
+
+  .emoji-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .emoji-grid button {
+    width: 44px; height: 44px; font-size: 21px; border: 1px solid var(--line);
+    background: #fff; border-radius: 9px; cursor: pointer; padding: 0;
+  }
+  .emoji-grid button.sel { border-color: var(--ink); border-width: 2px; background: #f4f1eb; }
+
+  .color-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .color-grid button {
+    width: 38px; height: 38px; border-radius: 50%; border: 3px solid transparent;
+    cursor: pointer; padding: 0;
+  }
+  .color-grid button.sel { border-color: var(--ink); }
+
+  .titre-liste { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .compteur { font-size: 12px; color: #bbb; font-weight: 400; letter-spacing: 0; text-transform: none; }
+
+  .cat-section { margin-bottom: 10px; }
+  .cat-entete {
+    width: 100%; display: flex; align-items: center; gap: 10px;
+    background: #fff; border: 1px solid var(--line); border-left-width: 4px;
+    border-left-style: solid; border-radius: 10px; padding: 12px 14px;
+    cursor: pointer; font-family: inherit; font-size: 14px; text-align: left;
+    color: var(--ink);
+  }
+  .cat-entete .emo { font-size: 17px; }
+  .cat-entete .nom { flex: 1; font-weight: 600; }
+  .cat-entete .nb { font-size: 12px; color: #999; font-weight: 400; }
+  .cat-entete .fleche { font-size: 11px; color: #999; transition: transform .15s; }
+  .cat-entete[aria-expanded="true"] .fleche { transform: rotate(90deg); }
+  .cat-contenu { padding: 8px 0 2px 10px; }
+  .cat-contenu .prod-item { margin-bottom: 6px; }
+
+  .hist-item {
+    background: #fff; border: 1px solid var(--line); border-left-width: 4px;
+    border-left-style: solid; border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 12px;
+  }
+  .hist-item .infos { flex: 1; min-width: 0; }
+  .hist-item .nom { font-size: 14px; font-weight: 500; }
+  .hist-item .meta { font-size: 11px; color: #999; margin-top: 2px; }
+  .hist-jour { font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+    color: #999; margin: 18px 0 8px; font-weight: 600; }
+  .hist-jour:first-child { margin-top: 0; }
+
+  /* --- Écran large : saisie à gauche, aperçu figé à droite --- */
+  @media (min-width: 900px) {
+    main { max-width: 1100px; margin: 0 auto; width: 100%; padding: 28px; }
+    #sc-impression.active { display: grid; grid-template-columns: 1fr 400px; gap: 40px; align-items: start; }
+    #sc-impression .colonne-saisie { order: 1; }
+    #sc-impression .colonne-apercu { order: 2; }
+    #sc-impression .colonne-apercu { position: sticky; top: 0; }
+    #sc-impression canvas.label { margin-bottom: 0; }
+    .apercu-titre { display: block; font-size: 12px; text-transform: uppercase;
+      letter-spacing: 1px; color: #999; margin-bottom: 10px; font-weight: 600; }
+    #sc-produits, #sc-reglages, #sc-historique { max-width: 640px; }
+
+    /* Compacte le formulaire pour qu'il tienne sans défilement */
+    .colonne-saisie label { margin-bottom: 12px; }
+    .colonne-saisie input, .colonne-saisie select { padding: 10px 12px; min-height: 44px; }
+    .dates-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .dates-row > label { margin-bottom: 12px; }
+    .chips { padding-bottom: 8px; margin-bottom: 2px; }
+    .qty-row { margin-bottom: 14px; }
+    .stepper button { width: 42px; height: 42px; }
+    nav { justify-content: center; }
+    nav button { flex: 0 0 130px; }
+  }
+  .apercu-titre { display: none; }
+
+  pre { background: #f4f1eb; border-radius: 8px; padding: 10px; font-size: 10px; overflow-x: auto; max-height: 240px; }
+</style>
+</head>
+<body>
+
+<div id="fatalError" style="display:none;background:#f7e9e6;color:#b3402d;padding:14px 16px;font-size:13px;line-height:1.5;border-bottom:1px solid #e8c9c2"></div>
+
+<header>
+  <div class="brand"><span class="g">L</span>A <span class="g">C</span>ARTE</div>
+  <div class="bt-state" id="btState">Non connectée</div>
+</header>
+
+<main>
+  <!-- ================= IMPRESSION ================= -->
+  <section class="screen active" id="sc-impression">
+    <!-- L'aperçu est placé en premier : sur mobile il coiffe le formulaire,
+         sur grand écran la grille le renvoie dans la colonne de droite. -->
+    <div class="colonne-apercu">
+      <button class="btn ghost" id="btnApercu" style="margin-bottom:12px">Voir l'aperçu</button>
+      <div id="wrapApercu" hidden>
+        <span class="apercu-titre">Aperçu — 50 × 30 mm</span>
+        <canvas class="label" id="preview"></canvas>
+      </div>
+    </div>
+
+    <div class="colonne-saisie">
+      <input type="search" id="recherche" placeholder="Rechercher un produit…" autocomplete="off"
+             style="margin-bottom:12px" />
+
+      <div id="chips" class="chips"></div>
+
+      <label><span>Produit</span>
+        <select id="produit"></select>
+      </label>
+
+      <label id="wrapManuel" hidden><span>Nom du produit</span>
+        <input type="text" id="produitManuel" placeholder="Ex : Sauce du jour" autocomplete="off" />
+      </label>
+
+      <div class="dates-row">
+        <label><span>Date de production</span>
+          <input type="date" id="dateProd" />
+        </label>
+
+        <label><span>DLC <span class="tag" id="tagForcee" hidden>forcée</span></span>
+          <input type="date" id="dlc" />
+        </label>
+      </div>
+      <div id="alerteDlc" hidden class="banner error" style="margin:-4px 0 14px;padding:10px 12px"></div>
+      <button class="link" id="btnRecalc" hidden>↺ Recalculer automatiquement</button>
+
+      <label><span>Préparé par</span>
+        <input type="text" id="cuisinier" placeholder="Prénom" autocomplete="off" list="cuisiniers" />
+        <datalist id="cuisiniers"></datalist>
+      </label>
+
+      <div class="qty-row">
+        <div class="lbl">Exemplaires</div>
+        <div class="stepper">
+          <button id="qMoins">−</button>
+          <div class="val" id="qVal">1</div>
+          <button id="qPlus">+</button>
+        </div>
+      </div>
+
+      <button class="btn primary" id="btnPrint">Imprimer</button>
+
+      <div id="printStatus"></div>
+    </div>
+  </section>
+
+  <!-- ================= PRODUITS ================= -->
+  <section class="screen" id="sc-produits">
+    <div class="card">
+      <label><span>Nom du produit</span>
+        <input type="text" id="pNom" placeholder="Ex : Purée patate douce" autocomplete="off" />
+      </label>
+      <label><span>Conservation (jours)</span>
+        <input type="number" id="pDuree" min="0" inputmode="numeric" placeholder="Ex : 3" />
+      </label>
+      <label><span>Catégorie</span>
+        <select id="pCat"></select>
+      </label>
+      <button class="btn primary" id="btnAddProd">Ajouter</button>
+      <button class="link" id="btnAnnulerEdit" hidden style="width:100%;text-align:center">Annuler la modification</button>
+    </div>
+
+    <div class="titre-liste">
+      <h2 style="margin:0">Mes produits <span id="nbProduits" class="compteur"></span></h2>
+      <button class="link" id="btnToutReplier" type="button">Tout replier</button>
+    </div>
+    <input type="search" id="rechercheProd" placeholder="Rechercher un produit…" autocomplete="off"
+           style="margin-bottom:14px" />
+    <div id="prodList"></div>
+
+  </section>
+
+  <!-- ================= HISTORIQUE ================= -->
+  <section class="screen" id="sc-historique">
+    <h2>Étiquettes imprimées</h2>
+    <p class="hint" style="margin-bottom:14px">
+      Journal local sur cet appareil, 200 dernières impressions.
+      Ce n'est pas un registre de traçabilité réglementaire.
+    </p>
+    <div id="histList"></div>
+    <button class="btn ghost" id="btnViderHisto" style="margin-top:16px">Vider l'historique</button>
+  </section>
+
+  <!-- ================= RÉGLAGES ================= -->
+  <section class="screen" id="sc-reglages">
+    <h2>Imprimante</h2>
+    <button class="btn primary" id="btnConnect">Connecter l'imprimante</button>
+    <button class="link" id="btnConnectAll" style="width:100%;text-align:center">Mon imprimante n'apparaît pas</button>
+    <button class="link" id="btnOublier" hidden style="width:100%;text-align:center">Oublier cette imprimante</button>
+    <div id="btStatus"></div>
+
+    <div style="margin-top:24px">
+      <label><span>Densité d'impression</span>
+        <select id="densite">
+          <option value="1">1 — très clair</option>
+          <option value="2">2</option>
+          <option value="3" selected>3 — recommandé</option>
+          <option value="4">4</option>
+          <option value="5">5 — très foncé</option>
+        </select>
+        <div class="hint">Monte si l'impression est pâle, baisse si le texte bave.</div>
+      </label>
+    </div>
+
+    <h2>Dépannage</h2>
+    <button class="btn ghost" id="btnTestCom">Tester la communication</button>
+    <button class="btn ghost" id="btnDiag">Diagnostic Bluetooth</button>
+    <div id="diagOut"></div>
+
+    <h2>Catégories</h2>
+    <div id="catList"></div>
+    <div class="card" style="margin-top:12px">
+      <label><span>Nouvelle catégorie</span>
+        <input type="text" id="cNom" placeholder="Ex : Poisson" autocomplete="off" />
+      </label>
+      <div class="champ">
+        <span class="champ-titre">Emoji</span>
+        <div class="emoji-grid" id="emojiGrid"></div>
+        <label style="margin-top:8px">
+          <input type="text" id="cEmoji" maxlength="4" placeholder="ou colle un emoji" />
+        </label>
+      </div>
+      <div class="champ">
+        <span class="champ-titre">Couleur</span>
+        <div class="color-grid" id="colorGrid"></div>
+      </div>
+      <button class="btn primary" id="btnAddCat">Ajouter la catégorie</button>
+    </div>
+    <h2>Données</h2>
+    <div id="rappelSauvegarde" hidden class="banner warn" style="margin-bottom:12px">
+      Pense à sauvegarder : produits, catégories et historique ne sont stockés que sur cet appareil.
+    </div>
+    <div id="etatSauvegarde" style="margin-bottom:10px"></div>
+    <button class="btn ghost" id="btnExport">Exporter mes produits</button>
+    <button class="btn ghost" id="btnImport">Importer des produits</button>
+    <input type="file" id="fileImport" accept="application/json" hidden />
+    <div id="dataStatus"></div>
+  </section>
+</main>
+
+<div id="confirmBox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:400px">
+    <p id="confirmTexte" style="margin:0 0 20px;font-size:15px;line-height:1.5;white-space:pre-line"></p>
+    <button class="btn primary" id="confirmOui" style="background:#b3402d">Supprimer</button>
+    <button class="btn ghost" id="confirmNon">Annuler</button>
+  </div>
+</div>
+
+<nav>
+  <button class="active" data-sc="impression"><span class="ico">🏷️</span>Imprimer</button>
+  <button data-sc="produits"><span class="ico">📋</span>Produits</button>
+  <button data-sc="historique"><span class="ico">🕑</span>Historique</button>
+  <button data-sc="reglages"><span class="ico">⚙️</span>Réglages</button>
+</nav>
+
+<script src="niimbot.js"></script>
+<script type="module" src="app.js"></script>
+
+
+</body>
+</html>
