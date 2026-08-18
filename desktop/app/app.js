@@ -1093,6 +1093,43 @@ $('densite').addEventListener('change', (e) => {
   saveConfig();
 });
 
+// Test de communication : vérifie que l'imprimante répond, sans consommer
+// d'étiquette. Utile pour distinguer « pas connectée » de « connectée mais
+// muette », les deux se traduisant sinon par un échec d'impression.
+$('btnTestCom').addEventListener('click', async () => {
+  const out = $('diagOut');
+  const btn = $('btnTestCom');
+  btn.disabled = true;
+  btn.textContent = 'Test en cours…';
+  out.innerHTML = '';
+
+  try {
+    if (!window.Niimbot || !Niimbot.isSupported()) {
+      throw new Error('Web Bluetooth unavailable');
+    }
+    if (!connecte) await tenterRepriseSilencieuse();
+
+    const info = await Niimbot.identify(MODEL);
+    const nom = (info && (info.label || info.model)) || 'Imprimante';
+    majEtatBt(nom, true);
+
+    let statut = null;
+    try { statut = await Niimbot.getStatus(); } catch (e) { /* pas toujours exposé */ }
+
+    const lignes = [`Communication établie avec ${esc(nom)}.`];
+    if (info && info.dpi) lignes.push(`Résolution : ${info.dpi} dpi`);
+    if (statut && statut.battery != null) lignes.push(`Batterie : ${statut.battery}`);
+    if (statut && statut.paper != null) lignes.push(`Papier : ${statut.paper}`);
+
+    banner(out, 'success', lignes.join('<br>'));
+  } catch (e) {
+    banner(out, 'error', traduireErreur(e));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Tester la communication';
+  }
+});
+
 $('btnDiag').addEventListener('click', async () => {
   const out = $('diagOut');
   out.innerHTML = '<div class="banner warn">Diagnostic en cours…</div>';

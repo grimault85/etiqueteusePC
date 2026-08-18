@@ -1,5 +1,18 @@
 # Journal des modifications
 
+## 2.7.1
+- **Correction** : « Tester la communication » ne faisait rien. Ce bouton et
+  « Mon imprimante n'apparaît pas » étaient restés dans le HTML alors que
+  leur code avait disparu lors du passage au pilote — aucun gestionnaire
+  n'y était rattaché.
+- « Tester la communication » interroge maintenant l'imprimante sans
+  consommer d'étiquette : modèle, résolution, batterie, papier. Utile pour
+  distinguer « pas connectée » de « connectée mais muette ».
+- « Mon imprimante n'apparaît pas » retiré : le sélecteur non filtré
+  n'existe plus depuis le passage au pilote.
+- Vérification systématique : plus aucun élément interactif sans code, ni
+  aucune référence du code vers un élément absent.
+
 ## 2.7.0
 - Reprise de connexion sans rouvrir le sélecteur d'appareil, sur les deux
   versions. `getDevices()` liste les imprimantes déjà autorisées ;
