@@ -1,39 +1,87 @@
-name: Compilation de l'application de bureau
+name: Publication de l'application de bureau
 
+# Déclenché par un tag de version : git tag v2.7.1 && git push origin v2.7.1
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
 
 jobs:
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install
-        working-directory: desktop
-      - run: npm run dist:win
-        working-directory: desktop
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Etiqueteuse-Windows
-          path: desktop/release/*.exe
+  compilation:
+    strategy:
+      fail-fast: false          # un échec macOS ne doit pas priver de la version Windows
+      matrix:
+        include:
+          - os: windows-latest
+            commande: dist:win
+            motif: release/*.exe
+            nom: windows
+          - os: macos-latest
+            commande: dist:mac
+            motif: release/*.dmg
+            nom: macos
 
-  macos:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
+
+      - name: Installer les dépendances
+        run: npm install
         working-directory: desktop
-      - run: npm run dist:mac
+
+      - name: Compiler
+        run: npm run ${{ matrix.commande }}
         working-directory: desktop
-      - uses: actions/upload-artifact@v4
+
+      - name: Conserver le binaire
+        uses: actions/upload-artifact@v4
         with:
-          name: Etiqueteuse-macOS
-          path: desktop/release/*.dmg
+          name: binaire-${{ matrix.nom }}
+          path: desktop/${{ matrix.motif }}
+          if-no-files-found: error
+
+  publication:
+    needs: compilation
+    runs-on: ubuntu-latest
+    # Nécessaire pour créer la Release et y attacher les fichiers.
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Récupérer les binaires
+        uses: actions/download-artifact@v4
+        with:
+          path: binaires
+
+      - name: Publier la Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          cat > notes.md <<'FIN'
+          ## Installation
+
+          **Windows** — télécharger le fichier `.exe` ci-dessous et le lancer.
+          Windows affiche « éditeur inconnu » : cliquer sur *Informations
+          complémentaires* → *Exécuter quand même*. L'application n'est pas
+          signée par un certificat payant, l'avertissement est normal.
+
+          **macOS** — télécharger le `.dmg`, l'ouvrir, glisser l'application
+          dans le dossier Applications. Au premier lancement : clic droit sur
+          l'icône → *Ouvrir*.
+
+          Pour mettre à jour : désinstaller l'ancienne version avant
+          d'installer celle-ci. Les produits et l'historique sont conservés.
+          FIN
+
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Étiqueteuse La Carte $VERSION" \
+            --notes-file notes.md \
+            $(find binaires -type f \( -name '*.exe' -o -name '*.dmg' \))

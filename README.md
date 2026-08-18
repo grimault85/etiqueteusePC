@@ -40,7 +40,36 @@ npm start                   # lancement
 npm run dist:win            # → release/Etiqueteuse-La-Carte-x.y.z.exe
 ```
 
-Le workflow `.github/workflows/build-desktop.yml` compile Windows et macOS à chaque tag `v*`.
+### Publier une nouvelle version
+
+```bash
+# 1. Mettre à jour le numéro de version
+#    desktop/package.json → "version": "2.8.0"
+
+git add -A
+git commit -m "Version 2.8.0"
+git push
+
+# 2. Poser le tag : c'est lui qui déclenche la publication
+git tag v2.8.0
+git push origin v2.8.0
+```
+
+GitHub compile alors Windows et macOS, puis crée une **Release** avec les
+deux fichiers attachés. Compter 5 à 10 minutes ; l'avancement est visible
+dans l'onglet *Actions*.
+
+La Release donne un lien de téléchargement **public et permanent**, sans
+compte GitHub requis :
+`https://github.com/<compte>/<dépôt>/releases/latest`
+
+C'est ce lien à transmettre. Les *Artifacts* de l'onglet Actions, eux,
+exigent un compte et expirent au bout de 90 jours.
+
+### Publier sans tag
+
+Onglet *Releases* → *Draft a new release* → déposer le `.exe` à la main.
+Utile pour une version compilée localement.
 
 ## Licence
 
