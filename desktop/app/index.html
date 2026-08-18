@@ -365,6 +365,11 @@
       </div>
       <button class="btn primary" id="btnAddCat">Ajouter la catégorie</button>
     </div>
+    <h2>Mise à jour</h2>
+    <div id="majVersion" class="hint" style="margin-bottom:10px"></div>
+    <button class="btn ghost" id="btnVerifierMaj">Vérifier les mises à jour</button>
+    <div id="majStatut"></div>
+
     <h2>Données</h2>
     <div id="rappelSauvegarde" hidden class="banner warn" style="margin-bottom:12px">
       Pense à sauvegarder : produits, catégories et historique ne sont stockés que sur cet appareil.
@@ -382,6 +387,14 @@
     <p id="confirmTexte" style="margin:0 0 20px;font-size:15px;line-height:1.5;white-space:pre-line"></p>
     <button class="btn primary" id="confirmOui" style="background:#b3402d">Supprimer</button>
     <button class="btn ghost" id="confirmNon">Annuler</button>
+  </div>
+</div>
+
+<div id="majBanner" hidden style="position:fixed;left:12px;right:12px;bottom:76px;z-index:150;background:#fff;border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:12px;padding:14px 16px;box-shadow:0 4px 18px rgba(0,0,0,.14)">
+  <div id="majTexte" style="font-size:14px;margin-bottom:10px"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button type="button" class="btn primary" id="majAction" style="width:auto;padding:9px 16px;min-height:40px"></button>
+    <button type="button" class="btn ghost" id="majPlusTard" style="width:auto;padding:9px 16px;min-height:40px">Plus tard</button>
   </div>
 </div>
 

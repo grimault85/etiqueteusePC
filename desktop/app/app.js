@@ -626,14 +626,18 @@ $('qPlus').addEventListener('click', () => {
 
 
 // --- Fenêtre de choix Bluetooth (Electron) ---
+// Electron n'affiche pas le sélecteur du système : sans interception,
+// requestDevice() ne répond jamais. La liste vient du processus principal.
 if (window.electronBT && window.electronBT.present) {
   const picker = $('btPicker');
   const liste = $('btPickerList');
+
   window.electronBT.onDevices((devices) => {
     picker.style.display = 'flex';
     liste.innerHTML = devices.length
       ? devices.map((dv) => `<button type="button" class="btn ghost" data-dev="${dv.deviceId}" data-nom="${esc(dv.deviceName)}">${esc(dv.deviceName)}</button>`).join('')
       : '<p class="hint">Aucun appareil détecté pour le moment…</p>';
+
     liste.querySelectorAll('[data-dev]').forEach((b) => {
       b.addEventListener('click', () => {
         picker.style.display = 'none';
@@ -642,6 +646,7 @@ if (window.electronBT && window.electronBT.present) {
       });
     });
   });
+
   $('btPickerCancel').addEventListener('click', () => {
     picker.style.display = 'none';
     window.electronBT.select('');
@@ -1145,6 +1150,86 @@ $('btnDiag').addEventListener('click', async () => {
   }
 });
 
+
+// --- Mises à jour ---
+// Version bureau : electron-updater compare la version publiée sur GitHub à
+// celle installée. Rien ne s'installe sans accord — une application qui
+// redémarre toute seule en plein service ferait perdre la saisie en cours.
+// Version web : le service worker s'en charge, cette section est masquée.
+if (window.electronMAJ && window.electronMAJ.present) {
+  const banniere = $('majBanner');
+  const texte = $('majTexte');
+  const action = $('majAction');
+  let versionDispo = null;
+  let verificationManuelle = false;
+
+  const montrer = (msg, libelle, onClic) => {
+    texte.textContent = msg;
+    action.textContent = libelle;
+    action.disabled = false;
+    action.onclick = onClic;
+    banniere.hidden = false;
+  };
+
+  $('majPlusTard').addEventListener('click', () => { banniere.hidden = true; });
+
+  window.electronMAJ.version().then((v) => {
+    $('majVersion').textContent = 'Version installée : ' + v;
+  });
+
+  window.electronMAJ.surEvenement('maj:disponible', ({ version }) => {
+    versionDispo = version;
+    $('majStatut').innerHTML = '';
+    montrer(`Version ${version} disponible.`, 'Télécharger', async () => {
+      action.disabled = true;
+      action.textContent = 'Téléchargement…';
+      const r = await window.electronMAJ.telecharger();
+      if (!r.ok) montrer('Téléchargement impossible : ' + r.erreur, 'Fermer',
+                         () => { banniere.hidden = true; });
+    });
+  });
+
+  window.electronMAJ.surEvenement('maj:progression', ({ pourcent }) => {
+    action.textContent = `Téléchargement… ${pourcent}%`;
+  });
+
+  window.electronMAJ.surEvenement('maj:prete', ({ version }) => {
+    montrer(`Version ${version} prête. L'application va redémarrer.`,
+            'Installer maintenant', () => window.electronMAJ.installer());
+  });
+
+  window.electronMAJ.surEvenement('maj:erreur', ({ message }) => {
+    // Silencieux au démarrage : être hors ligne est normal en cuisine.
+    if (verificationManuelle) {
+      banner($('majStatut'), 'error', 'Vérification impossible : ' + message);
+      verificationManuelle = false;
+      $('btnVerifierMaj').disabled = false;
+      $('btnVerifierMaj').textContent = 'Vérifier les mises à jour';
+    }
+  });
+
+  $('btnVerifierMaj').addEventListener('click', async () => {
+    const btn = $('btnVerifierMaj');
+    verificationManuelle = true;
+    btn.disabled = true;
+    btn.textContent = 'Vérification…';
+    $('majStatut').innerHTML = '';
+
+    const r = await window.electronMAJ.verifier();
+    btn.disabled = false;
+    btn.textContent = 'Vérifier les mises à jour';
+
+    if (!r.ok) banner($('majStatut'), 'error', 'Vérification impossible : ' + r.erreur);
+    else if (!versionDispo) banner($('majStatut'), 'success', 'Cette version est à jour.', 4000);
+    verificationManuelle = false;
+  });
+} else {
+  // Sur le web, la mise à jour passe par le rechargement de la page.
+  $('btnVerifierMaj').hidden = true;
+  $('majVersion').textContent =
+    "Cette version se met à jour toute seule : il suffit de recharger la page.";
+}
+
 // --- Import / export ---
 $('btnExport').addEventListener('click', () => {
   // Format v2 : produits + catégories. L'ancien format (tableau nu) reste lisible.
@@ -1262,4 +1347,4 @@ try {
   montrerErreur(err.message);
 }
 
-// Mode hors ligne : inutile, l'app de bureau est deja locale.
+// Mode hors ligne : inutile, l'application de bureau est déjà locale.

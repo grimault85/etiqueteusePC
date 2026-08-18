@@ -1,6 +1,16 @@
 # Journal des modifications
 
 ## 2.8.1
+- **Mise à jour automatique** (Windows) : l'application détecte les nouvelles
+  Releases et propose de les installer. Rien ne s'installe sans accord.
+- Numéro de version affiché dans les Réglages, avec vérification manuelle
+- Publication automatique des Releases à partir d'un tag `v*`, incluant
+  `latest.yml` et les `.blockmap` requis par la mise à jour
+- `desktop/sync-desktop.py` : la version bureau se régénère depuis les
+  sources web de façon reproductible, ce qui évite les blocs dupliqués
+  introduits par des retouches successives
+
+## 2.8.1
 - Publication automatique des Releases à partir d'un tag `v*`, avec les
   binaires Windows et macOS attachés
 - Le workflow tolère une Release déjà existante : il y ajoute les binaires

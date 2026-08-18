@@ -1,6 +1,8 @@
 name: Publication de l'application de bureau
 
-# Déclenché par un tag de version : git tag v2.7.1 && git push origin v2.7.1
+# Déclenché par un tag de version. Exemple :
+#   git tag v2.8.1
+#   git push origin v2.8.1
 on:
   push:
     tags: ['v*']
@@ -14,11 +16,9 @@ jobs:
         include:
           - os: windows-latest
             commande: dist:win
-            motif: release/*.exe
             nom: windows
           - os: macos-latest
             commande: dist:mac
-            motif: release/*.dmg
             nom: macos
 
     runs-on: ${{ matrix.os }}
@@ -37,24 +37,30 @@ jobs:
         run: npm run ${{ matrix.commande }}
         working-directory: desktop
 
-      - name: Conserver le binaire
+      # latest.yml et les .blockmap sont indispensables à la mise à jour
+      # automatique : sans eux, les applications déjà installées ne verront
+      # jamais la nouvelle version.
+      - name: Conserver les fichiers
         uses: actions/upload-artifact@v4
         with:
           name: binaire-${{ matrix.nom }}
-          path: desktop/${{ matrix.motif }}
           if-no-files-found: error
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.blockmap
+            desktop/release/latest*.yml
 
   publication:
     needs: compilation
     runs-on: ubuntu-latest
-    # Nécessaire pour créer la Release et y attacher les fichiers.
     permissions:
-      contents: write
+      contents: write           # nécessaire pour créer la Release
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Récupérer les binaires
+      - name: Récupérer les fichiers compilés
         uses: actions/download-artifact@v4
         with:
           path: binaires
@@ -65,29 +71,38 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
 
+          FICHIERS=$(find binaires -type f \
+            \( -name '*.exe' -o -name '*.dmg' -o -name '*.blockmap' -o -name 'latest*.yml' \))
+
+          echo "Fichiers à publier :"
+          echo "$FICHIERS"
+
+          if [ -z "$FICHIERS" ]; then
+            echo "Aucun binaire produit : publication annulée." >&2
+            exit 1
+          fi
+
           cat > notes.md <<'FIN'
           ## Installation
 
-          **Windows** — télécharger le fichier `.exe` ci-dessous et le lancer.
-          Windows affiche « éditeur inconnu » : cliquer sur *Informations
-          complémentaires* → *Exécuter quand même*. L'application n'est pas
-          signée par un certificat payant, l'avertissement est normal.
+          **Windows** — télécharger le `.exe` ci-dessous et le lancer. Windows
+          affiche « éditeur inconnu » : cliquer sur *Informations complémentaires*
+          → *Exécuter quand même*. L'application n'est pas signée par un
+          certificat payant, l'avertissement est normal.
 
-          **macOS** — télécharger le `.dmg`, l'ouvrir, glisser l'application
-          dans le dossier Applications. Au premier lancement : clic droit sur
-          l'icône → *Ouvrir*.
+          **macOS** — télécharger le `.dmg`, l'ouvrir, glisser l'application dans
+          le dossier Applications. Au premier lancement : clic droit sur l'icône
+          → *Ouvrir*.
 
-          Pour mettre à jour : désinstaller l'ancienne version avant
-          d'installer celle-ci. Les produits et l'historique sont conservés.
+          Les applications Windows déjà installées proposeront d'elles-mêmes
+          cette mise à jour.
+
+          Les fichiers `latest.yml` et `.blockmap` servent à ce mécanisme :
+          ne pas les retirer de la Release.
           FIN
 
-          FICHIERS=$(find binaires -type f \( -name '*.exe' -o -name '*.dmg' \))
-          echo "Binaires trouvés :"; echo "$FICHIERS"
-
-          # Si la Release existe déjà (relance du workflow, ou tag publié à la
-          # main), on se contente d'y attacher les binaires plutôt que d'échouer.
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            echo "Release existante — ajout des binaires."
+            echo "Release existante : ajout des fichiers."
             gh release upload "$GITHUB_REF_NAME" $FICHIERS --clobber
           else
             gh release create "$GITHUB_REF_NAME" \

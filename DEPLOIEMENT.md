@@ -78,6 +78,28 @@ et le `.dmg` attachés.
 
 ---
 
+## Mise à jour automatique des postes
+
+À partir de la version 2.8.1, les applications Windows déjà installées
+détectent les nouvelles Releases et proposent la mise à jour : l'utilisateur
+clique sur *Télécharger*, puis sur *Installer maintenant*, et l'application
+redémarre à jour.
+
+Rien n'est installé sans son accord — un redémarrage en plein service ferait
+perdre la saisie en cours.
+
+Conditions à respecter :
+
+- le tag doit suivre le format `vX.Y.Z` et **correspondre** à la version de
+  `desktop\package.json` ;
+- les fichiers `latest.yml` et `.blockmap` doivent rester attachés à la
+  Release : ce sont eux qui permettent la détection. Le workflow les ajoute
+  automatiquement.
+
+⚠️ Sur macOS, la mise à jour automatique exige une application signée par un
+certificat Apple (99 €/an). Sans cela, les postes Mac devront télécharger
+manuellement le `.dmg`. Les postes Windows ne sont pas concernés.
+
 ## Lien à diffuser
 
 ```

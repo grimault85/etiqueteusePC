@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const { autoUpdater } = require('electron-updater');
 
 // Electron n'expose pas navigator.bluetooth par défaut : sans ce flag, l'API
 // est tout simplement absente et l'app ne peut pas voir l'imprimante.
@@ -63,6 +64,81 @@ function demarrerServeur() {
     // Port 0 = le systeme en attribue un libre ; 127.0.0.1 = jamais expose au reseau
     serveur.listen(0, '127.0.0.1', () => resolve(serveur.address().port));
   });
+}
+
+// ---------------------------------------------------------------------------
+// Mises à jour automatiques
+//
+// La source est la page des Releases du dépôt (voir "publish" dans
+// package.json). electron-updater compare la version publiée à celle de
+// l'application et télécharge la différence.
+//
+// Rien n'est installé sans accord : en plein service, une application qui
+// redémarre toute seule ferait perdre la saisie en cours.
+// ---------------------------------------------------------------------------
+function configurerMiseAJour(win) {
+  autoUpdater.autoDownload = false;          // on demande d'abord
+  autoUpdater.autoInstallOnAppQuit = false;  // et on n'installe pas en douce
+
+  const envoyer = (canal, donnees) => {
+    if (!win.isDestroyed()) win.webContents.send(canal, donnees);
+  };
+
+  autoUpdater.on('update-available', (info) => {
+    envoyer('maj:disponible', { version: info.version, notes: info.releaseNotes || '' });
+  });
+
+  autoUpdater.on('download-progress', (p) => {
+    envoyer('maj:progression', { pourcent: Math.round(p.percent) });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    envoyer('maj:prete', { version: info.version });
+  });
+
+  autoUpdater.on('error', (err) => {
+    // Une vérification qui échoue ne doit jamais gêner l'usage : pas de
+    // réseau en cuisine est un cas normal, pas une erreur à signaler.
+    envoyer('maj:erreur', { message: String((err && err.message) || err) });
+  });
+
+  ipcMain.removeHandler('maj:version');
+  ipcMain.handle('maj:version', () => app.getVersion());
+
+  ipcMain.removeHandler('maj:verifier');
+  ipcMain.handle('maj:verifier', async () => {
+    try {
+      const r = await autoUpdater.checkForUpdates();
+      return { ok: true, version: r && r.updateInfo ? r.updateInfo.version : null };
+    } catch (err) {
+      return { ok: false, erreur: String((err && err.message) || err) };
+    }
+  });
+
+  ipcMain.removeHandler('maj:telecharger');
+  ipcMain.handle('maj:telecharger', async () => {
+    try {
+      await autoUpdater.downloadUpdate();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, erreur: String((err && err.message) || err) };
+    }
+  });
+
+  ipcMain.removeHandler('maj:installer');
+  ipcMain.handle('maj:installer', () => {
+    // true, true : ferme l'app, installe, puis la relance.
+    autoUpdater.quitAndInstall(true, true);
+    return true;
+  });
+
+  // Vérification au démarrage, une fois la fenêtre prête. En développement,
+  // electron-updater n'a pas de version installée à comparer : on s'abstient.
+  if (app.isPackaged) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch(() => { /* hors ligne : sans conséquence */ });
+    }, 4000);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +242,8 @@ function createWindow(port) {
     if (!url.startsWith('http://127.0.0.1:' + port)) evt.preventDefault();
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
+  configurerMiseAJour(win);
 
   win.loadURL('http://127.0.0.1:' + port + '/index.html');
   return win;
