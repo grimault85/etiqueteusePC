@@ -16,6 +16,14 @@ contextBridge.exposeInMainWorld('electronBT', {
     return () => ipcRenderer.removeListener('bt:auto', listener);
   },
 
+  // Demande de fermeture de la fenêtre de choix, quand la sélection s'est
+  // faite sans intervention de l'utilisateur.
+  onFermer: (handler) => {
+    const listener = () => handler();
+    ipcRenderer.on('bt:fermer', listener);
+    return () => ipcRenderer.removeListener('bt:fermer', listener);
+  },
+
   select: (deviceId, deviceName) => ipcRenderer.invoke('bt:select', deviceId, deviceName),
   oublier: () => ipcRenderer.invoke('bt:oublier'),
   memorisee: () => ipcRenderer.invoke('bt:memorisee'),

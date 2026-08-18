@@ -41,6 +41,11 @@ if (window.electronBT && window.electronBT.present) {
   const picker = $('btPicker');
   const liste = $('btPickerList');
 
+  // Le processus principal ferme la fenêtre quand il a choisi seul
+  // l'imprimante mémorisée : sans cela elle resterait affichée en
+  // « recherche en cours » alors que l'impression est déjà partie.
+  window.electronBT.onFermer(() => { picker.style.display = 'none'; });
+
   window.electronBT.onDevices((devices) => {
     picker.style.display = 'flex';
     liste.innerHTML = devices.length

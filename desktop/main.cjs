@@ -179,27 +179,55 @@ function createWindow(port) {
     },
   });
 
+  // Répond à une demande de sélection, une seule fois.
+  //
+  // Electron déclenche cet événement plusieurs fois pendant la découverte, et
+  // chaque déclenchement fournit sa propre fonction de réponse. Rappeler une
+  // réponse déjà utilisée fait tomber le processus principal : l'application
+  // se fermait quand on cliquait sur « Annuler » après une reprise
+  // automatique.
+  const repondre = (deviceId) => {
+    const reponse = bluetoothCallback;
+    bluetoothCallback = null;
+    if (!reponse) return false;
+    try {
+      reponse(deviceId || '');
+    } catch (err) {
+      // Réponse devenue invalide : sans conséquence, la demande a déjà abouti.
+    }
+    return true;
+  };
+
   win.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
     event.preventDefault();
 
+    // Une nouvelle demande remplace la précédente : l'ancienne réponse ne
+    // doit plus être utilisée.
+    bluetoothCallback = callback;
+
     // Si l'imprimante déjà appairée est dans la liste, on la reprend sans
-    // afficher la fenêtre de choix : reconnexion en un clic.
+    // afficher la fenêtre de choix.
     const memorise = lireDerniereImprimante();
     if (memorise) {
       const connue = deviceList.find((d) => d.deviceId === memorise);
       if (connue) {
+        // Fermer la fenêtre de choix : sans cela elle restait affichée en
+        // « recherche en cours » alors que l'impression était déjà partie.
+        win.webContents.send('bt:fermer');
         win.webContents.send('bt:auto', { deviceName: connue.deviceName || '' });
-        callback(connue.deviceId);
+        repondre(connue.deviceId);
         return;
       }
     }
 
-    bluetoothCallback = callback;
     win.webContents.send('bt:devices', deviceList.map((d) => ({
       deviceId: d.deviceId,
       deviceName: d.deviceName || '(sans nom)',
     })));
   });
+
+  // Sert aussi à fermer la fenêtre si la demande s'achève autrement.
+  win.webContents.on('did-navigate', () => { bluetoothCallback = null; });
 
   // --- Autorisations Bluetooth ---
   // Par défaut Electron refuse certaines demandes ; on autorise explicitement
@@ -243,6 +271,8 @@ function createWindow(port) {
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
+  win.repondreBluetooth = repondre;
+
   configurerMiseAJour(win);
 
   win.loadURL('http://127.0.0.1:' + port + '/index.html');
@@ -272,12 +302,14 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('bt:select', (_evt, deviceId, deviceName) => {
-  if (!bluetoothCallback) return false;
+ipcMain.handle('bt:select', (evt, deviceId, deviceName) => {
   if (deviceId) memoriserImprimante(deviceId, deviceName || '');
-  bluetoothCallback(deviceId || '');
-  bluetoothCallback = null;
-  return true;
+
+  // Passe par la fonction de la fenêtre concernée : elle protège contre le
+  // rappel d'une réponse déjà consommée.
+  const win = BrowserWindow.fromWebContents(evt.sender);
+  if (win && win.repondreBluetooth) return win.repondreBluetooth(deviceId);
+  return false;
 });
 
 // Permet à l'app d'oublier l'imprimante (bouton dans les réglages).

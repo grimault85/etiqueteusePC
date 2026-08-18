@@ -1,5 +1,16 @@
 # Journal des modifications
 
+## 2.8.2
+- **Correction (version bureau)** : la fenêtre de choix restait affichée en
+  « recherche en cours » alors que l'imprimante était connectée et
+  l'étiquette imprimée. Le processus principal choisissait l'imprimante
+  mémorisée sans jamais prévenir l'interface de refermer la fenêtre.
+- **Correction** : cliquer sur « Annuler » fermait l'application. Electron
+  déclenche l'événement de sélection plusieurs fois, chacun avec sa propre
+  fonction de réponse ; rappeler une réponse déjà utilisée fait tomber le
+  processus principal. Les réponses sont désormais invalidées après usage et
+  leur appel est protégé.
+
 ## 2.8.1
 - **Mise à jour automatique** (Windows) : l'application détecte les nouvelles
   Releases et propose de les installer. Rien ne s'installe sans accord.
