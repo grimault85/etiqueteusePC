@@ -31,6 +31,8 @@ python3 src/build.py        # régénère index.html et sw.js à la racine
 
 ## Version bureau
 
+Mode d'emploi complet et notes techniques : **[`desktop/README.md`](desktop/README.md)**.
+
 ```bash
 cd desktop
 npm install
