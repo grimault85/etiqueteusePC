@@ -25,15 +25,17 @@ Le Web Bluetooth exige **HTTPS**, d'où l'hébergement obligatoire. Ouvrir ensui
 
 Les sources vivent dans `src/`. La racine contient le **fichier unique généré** — ne pas l'éditer à la main.
 
-```bash
+```
 python3 src/build.py        # régénère index.html et sw.js à la racine
 ```
+
+Sous Windows, remplacer `python3` par `python`.
 
 ## Version bureau
 
 Mode d'emploi complet et notes techniques : **[`desktop/README.md`](desktop/README.md)**.
 
-```bash
+```
 cd desktop
 npm install
 npm start                   # lancement
@@ -42,7 +44,10 @@ npm run dist:win            # → release/Etiqueteuse-La-Carte-x.y.z.exe
 
 ### Publier une nouvelle version
 
-```bash
+Une commande par ligne — l'enchaînement avec `&&` n'est pas reconnu par
+PowerShell (celui livré avec Windows) :
+
+```
 # 1. Mettre à jour le numéro de version
 #    desktop/package.json → "version": "2.8.0"
 

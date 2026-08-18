@@ -108,7 +108,9 @@ Electron n'affiche pas celui du système : sans interception de `select-bluetoot
 
 ### Compiler
 
-```bash
+Une commande par ligne (PowerShell ne reconnaît pas l'enchaînement `&&`) :
+
+```
 npm install
 npm start           # lancer sans compiler
 npm run dist:win    # → release/Etiqueteuse-La-Carte-x.y.z.exe
