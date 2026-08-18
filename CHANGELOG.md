@@ -1,5 +1,12 @@
 # Journal des modifications
 
+## 2.8.1
+- Publication automatique des Releases à partir d'un tag `v*`, avec les
+  binaires Windows et macOS attachés
+- Le workflow tolère une Release déjà existante : il y ajoute les binaires
+  au lieu d'échouer
+- Guide de déploiement en PowerShell (`DEPLOIEMENT.md`)
+
 ## 2.7.1
 - **Correction** : « Tester la communication » ne faisait rien. Ce bouton et
   « Mon imprimante n'apparaît pas » étaient restés dans le HTML alors que

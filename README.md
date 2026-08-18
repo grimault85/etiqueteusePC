@@ -44,6 +44,12 @@ npm run dist:win            # → release/Etiqueteuse-La-Carte-x.y.z.exe
 
 ### Publier une nouvelle version
 
+Instructions détaillées, en PowerShell : **[`DEPLOIEMENT.md`](DEPLOIEMENT.md)**.
+
+⚠️ Une fois pour toutes : *Settings → Actions → General → Workflow permissions*
+→ **Read and write permissions**. Sans ce réglage, la compilation réussit mais
+la Release ne peut pas être créée.
+
 Une commande par ligne — l'enchaînement avec `&&` n'est pas reconnu par
 PowerShell (celui livré avec Windows) :
 

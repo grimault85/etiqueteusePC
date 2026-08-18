@@ -81,7 +81,17 @@ jobs:
           d'installer celle-ci. Les produits et l'historique sont conservés.
           FIN
 
-          gh release create "$GITHUB_REF_NAME" \
-            --title "Étiqueteuse La Carte $VERSION" \
-            --notes-file notes.md \
-            $(find binaires -type f \( -name '*.exe' -o -name '*.dmg' \))
+          FICHIERS=$(find binaires -type f \( -name '*.exe' -o -name '*.dmg' \))
+          echo "Binaires trouvés :"; echo "$FICHIERS"
+
+          # Si la Release existe déjà (relance du workflow, ou tag publié à la
+          # main), on se contente d'y attacher les binaires plutôt que d'échouer.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release existante — ajout des binaires."
+            gh release upload "$GITHUB_REF_NAME" $FICHIERS --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "Étiqueteuse La Carte $VERSION" \
+              --notes-file notes.md \
+              $FICHIERS
+          fi
