@@ -1,5 +1,15 @@
 # Journal des modifications
 
+## 2.7.0
+- Reprise de connexion sans rouvrir le sélecteur d'appareil, sur les deux
+  versions. `getDevices()` liste les imprimantes déjà autorisées ;
+  `requestDevice` est neutralisé le temps de l'appel, puis restauré.
+  Le pilote n'est pas modifié.
+- Le bouton Imprimer reconnecte tout seul : plus besoin de passer par
+  Réglages après un redémarrage.
+- Au démarrage, l'imprimante connue est affichée comme « hors ligne »
+  plutôt que « non connectée »
+
 ## 2.6.1
 - **Correction (version bureau)** : écran blanc définitif au clic sur
   « Connecter l'imprimante ». Le flag `WebBluetoothNewPermissionsBackend`

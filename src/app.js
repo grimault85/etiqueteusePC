@@ -760,6 +760,64 @@ if (window.electronBT && window.electronBT.present) {
   });
 }
 
+/**
+ * Nom de l'imprimante déjà autorisée, s'il y en a une.
+ * Sert uniquement à informer : la connexion réelle attend un geste.
+ * @returns {Promise<string|null>}
+ */
+async function imprimanteConnue() {
+  const bt = navigator.bluetooth;
+  if (!bt || typeof bt.getDevices !== 'function') return null;
+  try {
+    const connus = await bt.getDevices();
+    const cible = connus.find((d) => {
+      const n = d.name || '';
+      return MODEL.name_prefixes.some((p) => n.startsWith(p)) || /niimbot/i.test(n);
+    });
+    return cible ? (cible.name || 'Imprimante') : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// --- Reprise silencieuse de la connexion ---
+// Le pilote passe toujours par requestDevice(), qui ouvre le sélecteur du
+// système. Or le navigateur mémorise les appareils déjà autorisés et les
+// expose via getDevices(). On s'en sert pour reprendre l'imprimante connue
+// sans rouvrir la liste, en neutralisant requestDevice le temps de l'appel.
+//
+// Le pilote n'est volontairement pas modifié : le contournement vit ici et
+// disparaîtra tout seul le jour où getDevices() ne sera plus nécessaire.
+async function tenterRepriseSilencieuse() {
+  const bt = navigator.bluetooth;
+  if (!bt || typeof bt.getDevices !== 'function') return false;
+
+  let connus = [];
+  try {
+    connus = await bt.getDevices();
+  } catch (e) {
+    return false;   // navigateur sans persistance des autorisations
+  }
+
+  const cible = connus.find((d) => {
+    const n = d.name || '';
+    return MODEL.name_prefixes.some((p) => n.startsWith(p)) || /niimbot/i.test(n);
+  });
+  if (!cible) return false;
+
+  const original = bt.requestDevice.bind(bt);
+  bt.requestDevice = async () => cible;
+  try {
+    await Niimbot.connect(MODEL);
+    return true;
+  } catch (e) {
+    // Imprimante éteinte ou hors de portée : on laissera le sélecteur s'ouvrir.
+    return false;
+  } finally {
+    bt.requestDevice = original;
+  }
+}
+
 // --- Connexion imprimante ---
 function majEtatBt(texte, ok) {
   connecte = !!ok;
@@ -778,6 +836,7 @@ $('btnConnect').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Connexion…';
   try {
+    await tenterRepriseSilencieuse();
     const info = await Niimbot.identify(MODEL);
     const nom = (info && (info.label || info.model)) || 'Imprimante';
     majEtatBt(nom, true);
@@ -819,6 +878,10 @@ $('btnPrint').addEventListener('click', async () => {
   btn.textContent = 'Envoi…';
 
   try {
+    // Reconnecte sans rouvrir le sélecteur si l'imprimante est déjà connue :
+    // sinon il faudrait repasser par Réglages à chaque redémarrage.
+    if (!connecte) await tenterRepriseSilencieuse();
+
     const dataUrl = labelCanvas().toDataURL('image/png');
     await Niimbot.printImage(dataUrl, {
       model: MODEL,
@@ -1010,6 +1073,7 @@ $('btnDiag').addEventListener('click', async () => {
   const out = $('diagOut');
   out.innerHTML = '<div class="banner warn">Diagnostic en cours…</div>';
   try {
+    await tenterRepriseSilencieuse();
     const info = await Niimbot.identify(MODEL);
     let statut = null;
     try { statut = await Niimbot.getStatus(); } catch (_) {}
@@ -1122,6 +1186,16 @@ try {
   if (!window.Niimbot || !Niimbot.isSupported()) {
     banner($('printStatus'), 'warn',
       "Bluetooth indisponible dans ce navigateur. Ouvre l'app dans Chrome sur Android, en HTTPS.");
+  } else {
+    // Au démarrage, on signale simplement qu'une imprimante est connue.
+    // La connexion elle-même attend une action : le navigateur exige un
+    // geste de l'utilisateur avant tout accès Bluetooth.
+    imprimanteConnue().then((nom) => {
+      if (nom && !connecte) {
+        majEtatBt(nom + ' — hors ligne', false);
+        $('btnConnect').textContent = 'Reconnecter ' + nom;
+      }
+    });
   }
 } catch (err) {
   montrerErreur(err.message);
