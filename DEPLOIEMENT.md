@@ -11,7 +11,7 @@ Toutes les commandes se lancent depuis **PowerShell**, dans le dossier du dépô
 
 Sans ce réglage, la compilation réussit mais la Release ne peut pas être créée.
 
-Sur GitHub → **Settings** → **Actions** → **General** → section *Workflow permissions* →
+Sur GitHub → **Settings** → **Actions** → **General** → section _Workflow permissions_ →
 cocher **Read and write permissions** → **Save**.
 
 ---
@@ -82,7 +82,7 @@ et le `.dmg` attachés.
 
 À partir de la version 2.8.1, les applications Windows déjà installées
 détectent les nouvelles Releases et proposent la mise à jour : l'utilisateur
-clique sur *Télécharger*, puis sur *Installer maintenant*, et l'application
+clique sur _Télécharger_, puis sur _Installer maintenant_, et l'application
 redémarre à jour.
 
 Rien n'est installé sans son accord — un redémarrage en plein service ferait
@@ -113,6 +113,11 @@ publication. Aucun compte GitHub n'est requis pour télécharger.
 
 ## En cas de problème
 
+**Les deux compilations échouent (`exit code 1`)**
+Ouvrir le détail dans _Actions_, cliquer sur le job en échec, puis sur l'étape
+_Compiler_ pour voir le message exact. Cause fréquente : electron-builder
+tente de publier la Release lui-même faute de l'option `--publish never`.
+
 **Le workflow n'apparaît pas dans Actions**
 Le fichier `.github\workflows\build-desktop.yml` n'est pas sur GitHub. Vérifier :
 
@@ -125,7 +130,7 @@ défaut dans l'explorateur Windows. Utiliser `git add -A` depuis le dossier du d
 plutôt que le glisser-déposer dans le navigateur.
 
 **Le job « publication » échoue avec une erreur de permissions**
-Le réglage *Read and write permissions* n'est pas activé (voir plus haut).
+Le réglage _Read and write permissions_ n'est pas activé (voir plus haut).
 
 **La Release est créée mais sans le `.exe`**
 Le job « compilation » a échoué. Ouvrir le détail dans Actions pour voir l'étape

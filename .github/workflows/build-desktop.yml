@@ -5,13 +5,13 @@ name: Publication de l'application de bureau
 #   git push origin v2.8.1
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
 
 jobs:
   compilation:
     strategy:
-      fail-fast: false          # un échec macOS ne doit pas priver de la version Windows
+      fail-fast: false # un échec macOS ne doit pas priver de la version Windows
       matrix:
         include:
           - os: windows-latest
@@ -33,9 +33,19 @@ jobs:
         run: npm install
         working-directory: desktop
 
+      # --publish never est indispensable : la configuration "publish" du
+      # package.json sert à electron-updater pour CHERCHER les mises à jour.
+      # Sans cette option, electron-builder croit devoir publier lui-même la
+      # Release et échoue faute de jeton. C'est le job « publication » qui
+      # s'en charge, avec les droits nécessaires.
       - name: Compiler
-        run: npm run ${{ matrix.commande }}
+        run: npm run ${{ matrix.commande }} -- --publish never
         working-directory: desktop
+
+      - name: Lister ce qui a été produit
+        if: always()
+        shell: bash
+        run: ls -la desktop/release || echo "dossier release absent"
 
       # latest.yml et les .blockmap sont indispensables à la mise à jour
       # automatique : sans eux, les applications déjà installées ne verront
@@ -55,7 +65,7 @@ jobs:
     needs: compilation
     runs-on: ubuntu-latest
     permissions:
-      contents: write           # nécessaire pour créer la Release
+      contents: write # nécessaire pour créer la Release
 
     steps:
       - uses: actions/checkout@v4
