@@ -132,12 +132,20 @@ function configurerMiseAJour(win) {
     return true;
   });
 
-  // Vérification au démarrage, une fois la fenêtre prête. En développement,
-  // electron-updater n'a pas de version installée à comparer : on s'abstient.
+  // En développement, electron-updater n'a pas de version installée à
+  // comparer : on s'abstient.
   if (app.isPackaged) {
-    setTimeout(() => {
+    const verifier = () =>
       autoUpdater.checkForUpdates().catch(() => { /* hors ligne : sans conséquence */ });
-    }, 4000);
+
+    // Au démarrage, une fois la fenêtre prête.
+    setTimeout(verifier, 4000);
+
+    // Puis toutes les six heures : en cuisine l'application reste ouverte
+    // toute la journée, une vérification unique au lancement laisserait
+    // passer les versions publiées en cours de service.
+    const intervalle = setInterval(verifier, 6 * 60 * 60 * 1000);
+    win.on('closed', () => clearInterval(intervalle));
   }
 }
 
@@ -314,7 +322,7 @@ ipcMain.handle('bt:select', (evt, deviceId, deviceName) => {
 
 // Permet à l'app d'oublier l'imprimante (bouton dans les réglages).
 ipcMain.handle('bt:oublier', () => {
-  try { fs.unlinkSync(fichierPrefs()); } catch (e) {}
+  try { fs.unlinkSync(fichierPrefs()); } catch (e) { }
   return true;
 });
 
