@@ -36,7 +36,8 @@
     "mac": {
       "target": "dmg",
       "icon": "app/icons/icon-512.png",
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "artifactName": "${name}-${version}-${arch}.${ext}"
     },
     "directories": {
       "output": "release"

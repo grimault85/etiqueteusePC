@@ -81,13 +81,15 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
 
-          FICHIERS=$(find binaires -type f \
-            \( -name '*.exe' -o -name '*.dmg' -o -name '*.blockmap' -o -name 'latest*.yml' \))
+          # Les noms de fichiers contiennent des espaces : on ne peut pas les
+          # traiter comme une simple liste de mots.
+          mapfile -d '' FICHIERS < <(find binaires -type f \
+            \( -name '*.exe' -o -name '*.dmg' -o -name '*.blockmap' -o -name 'latest*.yml' \) -print0)
 
           echo "Fichiers à publier :"
-          echo "$FICHIERS"
+          printf '  %s\n' "${FICHIERS[@]}"
 
-          if [ -z "$FICHIERS" ]; then
+          if [ ${#FICHIERS[@]} -eq 0 ]; then
             echo "Aucun binaire produit : publication annulée." >&2
             exit 1
           fi
@@ -113,10 +115,10 @@ jobs:
 
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             echo "Release existante : ajout des fichiers."
-            gh release upload "$GITHUB_REF_NAME" $FICHIERS --clobber
+            gh release upload "$GITHUB_REF_NAME" "${FICHIERS[@]}" --clobber
           else
             gh release create "$GITHUB_REF_NAME" \
               --title "Étiqueteuse La Carte $VERSION" \
               --notes-file notes.md \
-              $FICHIERS
+              "${FICHIERS[@]}"
           fi
