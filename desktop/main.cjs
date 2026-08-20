@@ -1,7 +1,6 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const http = require('http');
 const { autoUpdater } = require('electron-updater');
 
 // Electron n'expose pas navigator.bluetooth par défaut : sans ce flag, l'API
@@ -13,17 +12,36 @@ const { autoUpdater } = require('electron-updater');
 // reste disponible sans lui.
 app.commandLine.appendSwitch('enable-features', 'WebBluetooth');
 
+const RACINE = path.join(__dirname, 'app');
+
 // ---------------------------------------------------------------------------
-// Pourquoi un serveur local plutôt que loadFile() ?
+// Pourquoi un protocole « app:// » plutôt qu'un serveur local ou file:// ?
 //
-// Le Web Bluetooth n'est exposé que dans un « contexte sécurisé » : HTTPS ou
-// localhost. Une page chargée en file:// n'en est pas un, et navigator.bluetooth
-// y est tout simplement absent — l'app se charge mais ne peut pas imprimer.
-// On sert donc les fichiers sur 127.0.0.1, sur un port choisi par le système.
-// Rien ne sort de la machine : aucune connexion Internet n'est nécessaire.
+// Deux contraintes se cumulent :
+//
+// 1. Le Web Bluetooth n'existe que dans un « contexte sécurisé ». En file://
+//    navigator.bluetooth est absent : l'application ne verrait jamais
+//    l'imprimante.
+//
+// 2. Le stockage local est cloisonné par origine, PORT COMPRIS. Un serveur
+//    local sur port aléatoire changeait donc d'origine à chaque lancement, et
+//    les produits enregistrés devenaient introuvables au démarrage suivant.
+//    Un port fixe n'est pas fiable non plus : s'il est occupé, l'origine
+//    change et les données sont de nouveau perdues.
+//
+// Un protocole déclaré « secure » et « standard » satisfait les deux : le
+// contexte est sécurisé et l'origine (app://local) ne varie jamais.
 // ---------------------------------------------------------------------------
 
-const RACINE = path.join(__dirname, 'app');
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'app',
+  privileges: {
+    standard: true,        // donne une véritable origine, indispensable au stockage
+    secure: true,          // contexte sécurisé : autorise le Web Bluetooth
+    supportFetchAPI: true,
+    stream: true,
+  },
+}]);
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -34,35 +52,26 @@ const TYPES = {
   '.webmanifest': 'application/manifest+json; charset=utf-8',
 };
 
-function demarrerServeur() {
-  return new Promise((resolve, reject) => {
-    const serveur = http.createServer((req, res) => {
-      let rel = decodeURIComponent(req.url.split('?')[0]);
-      if (rel === '/') rel = '/index.html';
+function servirFichiers() {
+  protocol.handle('app', async (requete) => {
+    const url = new URL(requete.url);
+    let rel = decodeURIComponent(url.pathname);
+    if (rel === '/' || rel === '') rel = '/index.html';
 
-      // Empêche de sortir du dossier app/ via ../
-      const cible = path.normalize(path.join(RACINE, rel));
-      if (!cible.startsWith(RACINE)) {
-        res.writeHead(403).end('Interdit');
-        return;
-      }
+    // Empêche de sortir du dossier app/ via ../
+    const cible = path.normalize(path.join(RACINE, rel));
+    if (!cible.startsWith(RACINE)) {
+      return new Response('Interdit', { status: 403 });
+    }
 
-      fs.readFile(cible, (err, data) => {
-        if (err) {
-          res.writeHead(404).end('Introuvable');
-          return;
-        }
-        res.writeHead(200, {
-          'Content-Type': TYPES[path.extname(cible).toLowerCase()] || 'application/octet-stream',
-          'Cache-Control': 'no-store',
-        });
-        res.end(data);
+    try {
+      const contenu = await fs.promises.readFile(cible);
+      return new Response(contenu, {
+        headers: { 'Content-Type': TYPES[path.extname(cible).toLowerCase()] || 'application/octet-stream' },
       });
-    });
-
-    serveur.on('error', reject);
-    // Port 0 = le systeme en attribue un libre ; 127.0.0.1 = jamais expose au reseau
-    serveur.listen(0, '127.0.0.1', () => resolve(serveur.address().port));
+    } catch (err) {
+      return new Response('Introuvable', { status: 404 });
+    }
   });
 }
 
@@ -158,6 +167,46 @@ let bluetoothCallback = null;
 // Mémorise la dernière imprimante appairée pour la resélectionner sans
 // réafficher la fenêtre de choix. Stocké dans le dossier utilisateur de l'app.
 const fichierPrefs = () => path.join(app.getPath('userData'), 'imprimante.json');
+const fichierFenetre = () => path.join(app.getPath('userData'), 'fenetre.json');
+
+/**
+ * Dimensions d'ouverture.
+ *
+ * Une taille fixe déborde des petits écrans : la fenêtre est alors rognée et
+ * une barre de défilement apparaît dès l'ouverture. On part donc de l'espace
+ * réellement disponible, et on restaure la taille choisie par l'utilisateur
+ * lors de la session précédente.
+ */
+function dimensionsFenetre() {
+  const dispo = screen.getPrimaryDisplay().workAreaSize;
+
+  // 1100x900 au maximum, sans jamais dépasser l'écran.
+  const defaut = {
+    width: Math.min(1100, Math.max(420, dispo.width - 80)),
+    height: Math.min(900, Math.max(600, dispo.height - 60)),
+  };
+
+  try {
+    const enregistre = JSON.parse(fs.readFileSync(fichierFenetre(), 'utf8'));
+    // Un écran débranché depuis peut rendre la position invalide : on ne
+    // restaure que si la fenêtre tient dans l'espace actuel.
+    if (enregistre.width <= dispo.width && enregistre.height <= dispo.height) {
+      return { ...defaut, ...enregistre };
+    }
+  } catch (e) { /* première ouverture */ }
+
+  return defaut;
+}
+
+function memoriserFenetre(win) {
+  if (win.isDestroyed() || win.isMinimized()) return;
+  const b = win.getNormalBounds();
+  try {
+    fs.writeFileSync(fichierFenetre(), JSON.stringify({
+      width: b.width, height: b.height, x: b.x, y: b.y,
+    }), 'utf8');
+  } catch (e) { /* non bloquant */ }
+}
 
 function lireDerniereImprimante() {
   try { return JSON.parse(fs.readFileSync(fichierPrefs(), 'utf8')).deviceId || null; }
@@ -169,14 +218,19 @@ function memoriserImprimante(deviceId, deviceName) {
   catch (e) { /* non bloquant : on retombe simplement sur le choix manuel */ }
 }
 
-function createWindow(port) {
+function createWindow() {
   let relances = 0;
 
+  const dims = dimensionsFenetre();
+
   const win = new BrowserWindow({
-    width: 980,
-    height: 820,
+    width: dims.width,
+    height: dims.height,
+    x: dims.x,
+    y: dims.y,
     minWidth: 420,
-    minHeight: 600,
+    minHeight: 560,
+    show: false,          // évite un affichage blanc le temps du chargement
     autoHideMenuBar: true,
     backgroundColor: '#faf8f4',
     icon: path.join(RACINE, 'icons', 'icon-512.png'),
@@ -275,34 +329,37 @@ function createWindow(port) {
   // Empêche toute navigation hors de l'application : un fichier glissé dans
   // la fenêtre remplacerait la page et donnerait un écran blanc.
   win.webContents.on('will-navigate', (evt, url) => {
-    if (!url.startsWith('http://127.0.0.1:' + port)) evt.preventDefault();
+    if (!url.startsWith('app://')) evt.preventDefault();
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
+  // Affichage seulement quand la page est prête : sinon on voit brièvement
+  // une fenêtre vide.
+  win.once('ready-to-show', () => win.show());
+
+  let sauvegardeDifferee;
+  const planifierSauvegarde = () => {
+    clearTimeout(sauvegardeDifferee);
+    sauvegardeDifferee = setTimeout(() => memoriserFenetre(win), 400);
+  };
+  win.on('resize', planifierSauvegarde);
+  win.on('move', planifierSauvegarde);
+  win.on('close', () => memoriserFenetre(win));
 
   win.repondreBluetooth = repondre;
 
   configurerMiseAJour(win);
 
-  win.loadURL('http://127.0.0.1:' + port + '/index.html');
+  win.loadURL('app://local/index.html');
   return win;
 }
 
-app.whenReady().then(async () => {
-  let port;
-  try {
-    port = await demarrerServeur();
-  } catch (err) {
-    const { dialog } = require('electron');
-    dialog.showErrorBox('Demarrage impossible',
-      "Le serveur local n'a pas pu demarrer : " + err.message);
-    app.quit();
-    return;
-  }
-
-  createWindow(port);
+app.whenReady().then(() => {
+  servirFichiers();
+  createWindow();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow(port);
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
@@ -322,7 +379,7 @@ ipcMain.handle('bt:select', (evt, deviceId, deviceName) => {
 
 // Permet à l'app d'oublier l'imprimante (bouton dans les réglages).
 ipcMain.handle('bt:oublier', () => {
-  try { fs.unlinkSync(fichierPrefs()); } catch (e) { }
+  try { fs.unlinkSync(fichierPrefs()); } catch (e) {}
   return true;
 });
 
