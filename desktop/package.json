@@ -1,6 +1,6 @@
 {
   "name": "etiqueteuse-lacarte",
-  "version": "2.9.0",
+  "version": "2.9.1",
   "description": "Étiqueteuse de production (DLC) — La Carte — Niimbot B1 Pro",
   "main": "main.cjs",
   "author": "La Carte — Conseil Restaurant",
@@ -24,9 +24,8 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "app/icons/icon-512.png",
-      "artifactName": "Etiqueteuse-La-Carte-${version}.${ext}",
-      "signAndEditExecutable": false
+      "icon": "app/icons/icon.ico",
+      "artifactName": "Etiqueteuse-La-Carte-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
