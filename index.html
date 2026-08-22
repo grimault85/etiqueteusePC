@@ -1994,7 +1994,46 @@ window.addEventListener('unhandledrejection', (e) =>
 let stockagePersistant = true;
 const memoire = {};
 
+// Version bureau : les données vivent dans un fichier JSON du dossier
+// utilisateur, indépendant du stockage du navigateur — celui-ci dépend de
+// l'origine et des réglages de Chromium, et s'est révélé peu fiable en usage
+// réel. Version web : le stockage du navigateur reste la seule option.
+const surFichier = !!(window.electronDonnees && window.electronDonnees.present);
+
+// Copie en mémoire du fichier, chargée une fois au démarrage.
+let donneesFichier = {};
+if (surFichier) {
+  try {
+    donneesFichier = window.electronDonnees.lire() || {};
+  } catch (e) {
+    donneesFichier = {};
+    stockagePersistant = false;
+  }
+}
+
+// Reprise des données du navigateur lors du passage au fichier : sans cela,
+// les produits déjà saisis disparaîtraient à la mise à jour.
+if (surFichier && !donneesFichier.__migre) {
+  const CLES = ['lacarte.produits', 'lacarte.categories', 'lacarte.config',
+                'lacarte.historique', 'lacarte.cuisiniers', 'lacarte.sauvegarde',
+                'lacarte.replies'];
+  let repris = 0;
+  for (const cle of CLES) {
+    if (donneesFichier[cle] !== undefined) continue;
+    try {
+      const v = localStorage.getItem(cle);
+      if (v !== null) { donneesFichier[cle] = JSON.parse(v); repris++; }
+    } catch (e) { /* stockage inaccessible : rien à reprendre */ }
+  }
+  donneesFichier.__migre = true;
+  window.electronDonnees.ecrire(donneesFichier).catch(() => {});
+  if (repris) console.info(repris + ' entrées reprises depuis le navigateur.');
+}
+
 function lire(cle, defaut) {
+  if (surFichier) {
+    return donneesFichier[cle] === undefined ? defaut : donneesFichier[cle];
+  }
   try {
     const v = localStorage.getItem(cle);
     return v === null ? defaut : JSON.parse(v);
@@ -2006,6 +2045,18 @@ function lire(cle, defaut) {
 }
 
 function ecrire(cle, valeur) {
+  if (surFichier) {
+    donneesFichier[cle] = valeur;
+    // L'écriture est asynchrone : un échec doit être visible, pas silencieux.
+    window.electronDonnees.ecrire(donneesFichier).then((r) => {
+      if (r && !r.ok) {
+        stockagePersistant = false;
+        montrerErreur("Enregistrement impossible : " + r.erreur);
+      }
+    }).catch(() => { stockagePersistant = false; });
+    return;
+  }
+
   const json = JSON.stringify(valeur);
   memoire[cle] = json;
   try { localStorage.setItem(cle, json); }
@@ -3003,6 +3054,18 @@ function sauvegardeAConseiller() {
 function majEtatSauvegarde() {
   const el = $('etatSauvegarde');
   if (!el) return;
+
+  // Emplacement réel du fichier : permet de le sauvegarder ou de vérifier.
+  if (surFichier && !el.dataset.cheminAffiche) {
+    el.dataset.cheminAffiche = '1';
+    window.electronDonnees.chemin().then((c) => {
+      const p = document.createElement('div');
+      p.className = 'hint';
+      p.style.cssText = 'margin-top:6px;word-break:break-all';
+      p.textContent = 'Fichier de données : ' + c;
+      el.parentNode.insertBefore(p, el.nextSibling);
+    }).catch(() => {});
+  }
 
   if (!sauvegarde.derniere) {
     el.innerHTML = '<div class="hint">Aucune sauvegarde effectuée.</div>';

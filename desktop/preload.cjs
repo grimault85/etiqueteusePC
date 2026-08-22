@@ -48,3 +48,12 @@ contextBridge.exposeInMainWorld('electronMAJ', {
   telecharger: () => ipcRenderer.invoke('maj:telecharger'),
   installer: () => ipcRenderer.invoke('maj:installer'),
 });
+
+// Stockage sur fichier, propre à la version bureau.
+contextBridge.exposeInMainWorld('electronDonnees', {
+  present: true,
+  // Synchrone : l'interface lit les produits avant son premier affichage.
+  lire: () => ipcRenderer.sendSync('donnees:lire'),
+  ecrire: (donnees) => ipcRenderer.invoke('donnees:ecrire', donnees),
+  chemin: () => ipcRenderer.invoke('donnees:chemin'),
+});

@@ -19,8 +19,11 @@ import os
 import shutil
 import sys
 
-WEB = '/home/claude/etiqueteuse-v2'
-DESKTOP = '/home/claude/etiqueteuse-desktop/app'
+# Chemins relatifs au dépôt : le script fonctionne quel que soit l'endroit
+# où celui-ci est cloné.
+ICI = os.path.dirname(os.path.abspath(__file__))
+WEB = os.path.join(ICI, '..', 'src')
+DESKTOP = os.path.join(ICI, 'app')
 
 PICKER_HTML = '''<div id="btPicker" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:20px">
   <div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:420px;max-height:70vh;overflow-y:auto">
