@@ -1,17 +1,33 @@
 name: Publication de l'application de bureau
 
-# Déclenché par un tag de version. Exemple :
-#   git tag v2.8.1
-#   git push origin v2.8.1
+# Trois façons de déclencher la publication :
+#
+#   1. Pousser un tag depuis un poste :
+#        git tag v2.9.0
+#        git push origin v2.9.0
+#
+#   2. Publier une Release depuis le site GitHub. Un tag créé par
+#      l'interface web ne déclenche pas toujours l'événement « push » ;
+#      l'événement « release » est lui garanti, et permet de tout faire
+#      depuis un téléphone.
+#
+#   3. Lancer le workflow à la main depuis l'onglet Actions, en indiquant
+#      le tag à publier. Utile pour relancer une compilation.
 on:
   push:
-    tags: ["v*"]
+    tags: ['v*']
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag à compiler et publier (ex : v2.9.0)"
+        required: true
 
 jobs:
   compilation:
     strategy:
-      fail-fast: false # un échec macOS ne doit pas priver de la version Windows
+      fail-fast: false          # un échec macOS ne doit pas priver de la version Windows
       matrix:
         include:
           - os: windows-latest
@@ -23,7 +39,10 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
+      # Sur déclenchement manuel, on compile le tag demandé et non la branche.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -47,6 +66,7 @@ jobs:
         shell: bash
         run: ls -la desktop/release || echo "dossier release absent"
 
+
       # latest.yml et les .blockmap sont indispensables à la mise à jour
       # automatique : sans eux, les applications déjà installées ne verront
       # jamais la nouvelle version.
@@ -65,7 +85,7 @@ jobs:
     needs: compilation
     runs-on: ubuntu-latest
     permissions:
-      contents: write # nécessaire pour créer la Release
+      contents: write           # nécessaire pour créer la Release
 
     steps:
       - uses: actions/checkout@v4
@@ -79,7 +99,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          # Selon le déclencheur, le tag vient de l'entrée manuelle ou de la
+          # référence Git courante.
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then TAG="$GITHUB_REF_NAME"; fi
+          VERSION="${TAG#v}"
+          echo "Publication du tag $TAG (version $VERSION)"
 
           # Les noms de fichiers contiennent des espaces : on ne peut pas les
           # traiter comme une simple liste de mots.
@@ -113,11 +138,11 @@ jobs:
           ne pas les retirer de la Release.
           FIN
 
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+          if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release existante : ajout des fichiers."
-            gh release upload "$GITHUB_REF_NAME" "${FICHIERS[@]}" --clobber
+            gh release upload "$TAG" "${FICHIERS[@]}" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" \
+            gh release create "$TAG" \
               --title "Étiqueteuse La Carte $VERSION" \
               --notes-file notes.md \
               "${FICHIERS[@]}"
